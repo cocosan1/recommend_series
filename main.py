@@ -2,6 +2,15 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from pandas.core.common import random_state
+import lightgbm as lgb
+from sklearn.model_selection import GridSearchCV
+
+from sklearn.metrics import mean_squared_error # モデル評価用(平均二乗誤差)
+from sklearn.metrics import r2_score # モデル評価用(決定係数)
+
 #st
 st.set_page_config(page_title='recommend_series')
 st.markdown('#### レコメンド アプリ')
@@ -79,6 +88,106 @@ if target != '':
     sim_candidates2 = df_merge.drop(index=tenji_series)
     st.markdown('###### お薦め展示シリーズ')
     st.write(sim_candidates2)
+
+#***************************lgbm********************************************
+with st.form('lgbmによる推測'):
+
+    #lgbmで予測するシリーズの選択
+    target_lgbm = st.selectbox(
+            'target series:',
+            sim_candidates2.index,   
+        ) 
+    submitted = st.form_submit_button("Submit")
+    if submitted:    
+
+        #相関係数でカラムを絞る
+        df_corr_all = df_zenkoku.corr()
+        df_corr_all2 = df_corr_all.loc[target_lgbm]
+        df_corr_all2 = df_corr_all2[(df_corr_all2 >=0.4) | (df_corr_all2 <= -0.4)]
+
+        #単回帰分析で外れ値（得意先）を削除
+        #target_lgbmを抜いたカラムリスト作成
+        col_list = list(df_corr_all2.index)
+        col_list.remove(target_lgbm)
+
+        #単回帰モデル作成
+        model_lr = LinearRegression()
+
+        for col in col_list:
+            model_lr.fit(df_zenkoku[[col]], df_zenkoku[[target_lgbm]])
+
+            df_target = df_zenkoku[[target_lgbm]]
+            df_target['lr_value'] = model_lr.predict(df_zenkoku[[col]])
+            df_target['lr_value'] = df_target['lr_value'].map(lambda x: round(x))
+            df_target['value/lr'] = df_target['lr_value'] / df_target[target_lgbm]
+
+            df_target = df_target[(df_target['value/lr'] <= 4) & (df_target['value/lr'] >= 0.25)]
+
+        #外れ値削除後（得意先を絞った）のdf_zenkoku
+        df_zenkoku5 = df_zenkoku.loc[df_target.index]
+
+
+        #target(対象得意先)のデータを外す
+        if target in df_zenkoku5.index:
+            df_zenkoku6 = df_zenkoku5.drop(target, axis=0)
+        else:
+            df_zenkoku6 = df_zenkoku5.copy()
+
+        #target_seriesが10万円以上のデータに絞る
+        df_zenkoku6 = df_zenkoku6[df_zenkoku6[target_lgbm] >= 100000]                   
+
+        #相関の高いカラムに絞ってモデルに渡す
+        corr_col_list = df_corr_all2.index
+
+        df_zenkoku6 = df_zenkoku6[corr_col_list]
+
+        #過去のデータを分析するモデル作成　lgbm
+
+        #データの分割
+        X = df_zenkoku6.drop(target_lgbm, axis=1)
+        y = df_zenkoku6[target_lgbm]
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+        #lgbmの実装
+        #ハイパーパラメータ調整
+        estimator = lgb.LGBMRegressor()
+
+        #ハイパーパラメータの範囲
+        param_grid = [{
+            'num_leaves': [50, 60, 70, 80, 90, 100, 110, 120, 130], #[50, 60, 70, 80, 90, 100, 110, 120, 130]
+            'n_estimators': [50, 60, 70, 80, 90, 100, 110, 120, 130],#def100
+            'boosting_type':['gbdt', 'dart', 'goss', 'rf'], #def 'gbdt'['gbdt', 'dart', 'goss', 'rf']
+            'min_data_in_leaf': [10, 20, 30, 40, 50], #[10, 20, 30, 40, 50]
+            'class_weight': ['balanced'], #['balanced', 'None']
+            'max_depth': [2, 3, 4, 5, 6], #[2, 3, 4, 5, 6]
+            # 'learning_rate': [0.1],
+            'random_state': [100]
+        }]
+
+        #データセットの分割数
+        cv = 5
+
+        tuned_model = GridSearchCV(estimator=estimator,
+                                param_grid= param_grid,
+                                cv= cv,
+                                return_train_score=False) #return_train_score　trainデータの検証を返すか
+
+        tuned_model.fit(X_train, y_train)
+
+        y_pred_train = tuned_model.predict(X_train)
+        y_pred_test = tuned_model.predict(X_test)
+
+        df_tuned_model = pd.DataFrame(tuned_model.cv_results_)
+
+        r2_train = r2_score(y_train,y_pred_train)
+        r2_test = r2_score(y_test,y_pred_test)
+        st.write('R2_train :',r2_train)
+        st.write('R2_test :',r2_test)
+
+
+
+
 
 
 
