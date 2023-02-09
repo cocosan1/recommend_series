@@ -20,7 +20,7 @@ df_zenkoku2 = df_zenkoku2[(df_zenkoku2['sales'] >= sales_min) & (df_zenkoku2['sa
 #target選定用リスト
 st.write('target得意先の選択')
 df_kita = pd.read_pickle('df_kita7879.pickle')
-cust_text = st.text_input('得意先名の一部を入力', '東京イ')
+cust_text = st.text_input('得意先名の一部を入力 例）東京イ')
 
 target_list = []
 for cust_name in df_kita.index:
