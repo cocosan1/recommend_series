@@ -111,20 +111,22 @@ with st.form('lgbmによる推測'):
         col_list.remove(target_lgbm)
 
         #単回帰モデル作成
-        model_lr = LinearRegression()
+        # model_lr = LinearRegression()
 
-        for col in col_list:
-            model_lr.fit(df_zenkoku[[col]], df_zenkoku[[target_lgbm]])
+        # for col in col_list:
+        #     model_lr.fit(df_zenkoku[[col]], df_zenkoku[[target_lgbm]])
 
-            df_target = df_zenkoku[[target_lgbm]]
-            df_target['lr_value'] = model_lr.predict(df_zenkoku[[col]])
-            df_target['lr_value'] = df_target['lr_value'].map(lambda x: round(x))
-            df_target['value/lr'] = df_target['lr_value'] / df_target[target_lgbm]
+        #     df_target = df_zenkoku[[target_lgbm]]
+        #     df_target['lr_value'] = model_lr.predict(df_zenkoku[[col]])
+        #     df_target['lr_value'] = df_target['lr_value'].map(lambda x: round(x))
+        #     df_target['value/lr'] = df_target['lr_value'] / df_target[target_lgbm]
 
-            df_target = df_target[(df_target['value/lr'] <= 4) & (df_target['value/lr'] >= 0.25)]
+        #     df_target = df_target[(df_target['value/lr'] <= 4) & (df_target['value/lr'] >= 0.25)]
 
-        #外れ値削除後（得意先を絞った）のdf_zenkoku
-        df_zenkoku5 = df_zenkoku.loc[df_target.index]
+        # #外れ値削除後（得意先を絞った）のdf_zenkoku
+        # df_zenkoku5 = df_zenkoku.loc[df_target.index]
+
+        df_zenkoku5 = df_zenkoku.copy()
 
 
         #target(対象得意先)のデータを外す
@@ -184,6 +186,66 @@ with st.form('lgbmによる推測'):
         r2_test = r2_score(y_test,y_pred_test)
         st.write('R2_train :',r2_train)
         st.write('R2_test :',r2_test)
+
+        #パラメータチューニングの結果
+        df_tuned_model.sort_values('mean_test_score', ascending=False)
+
+        #ベストモデルの作成
+        best_model = tuned_model.best_estimator_
+        st.caption('ベストモデルのスコア')
+        st.write(best_model.score(X_test, y_test))
+
+        y_pred_best = best_model.predict(X_test)
+
+        # 真値と予測値の表示
+        df_pred = pd.DataFrame({'real': y_test, 'pred': y_pred_best})
+        df_pred['pred'] = df_pred['pred'].map(lambda x: round(x))
+        df_pred['rate'] = df_pred['pred'] / df_pred['real']
+
+        st.caption('予測状況')
+        st.dataframe(df_pred)
+
+        # モデル評価
+        # rmse : 平均二乗誤差の平方根
+
+        mse = mean_squared_error(y_test, y_pred_test) # MSE(平均二乗誤差)の算出
+        rmse = np.sqrt(mse) # RSME = √MSEの算出
+        st.write('RMSE :',rmse)
+
+        # r2 : 決定係数
+        r2 = r2_score(y_test,y_pred_test)
+        st.write('R2 :',r2)
+
+        importances = pd.DataFrame({'features': X_train.columns, \
+                            'importances': best_model.feature_importances_})\
+                            .sort_values('importances', ascending=False)
+        st.caption('feature_importances')               
+        st.dataframe(importances)
+
+        #*****************target得意先の推測*******************************
+        df_target = pd.DataFrame(df_zenkoku.loc[target])
+        df_target = df_target.T
+
+        #相関の強いカラムへの絞込み
+        df_target2 = df_target[corr_col_list]
+
+        X_target = df_target2.drop(target_lgbm, axis=1)
+        y_target = df_target2[target_lgbm]
+
+        #ベストモデルで推測
+        best_model2 = tuned_model.best_estimator_
+        st.caption('ベストモデルのスコア')
+        st.write(best_model2.score(X_target, y_target))
+
+        y_pred_best = best_model2.predict(X_target)
+
+        # 真値と予測値の表示
+        df_pred = pd.DataFrame({'real': y_target, 'pred': y_pred_best})
+        df_pred['pred'] = df_pred['pred'].map(lambda x: round(x))
+        df_pred['rate'] = df_pred['pred'] / df_pred['real']
+        st.caption('推測結果')
+        st.table(df_pred)
+
 
 
 
