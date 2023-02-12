@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
+from PIL import Image
 
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -13,11 +14,12 @@ from sklearn.metrics import r2_score # モデル評価用(決定係数)
 
 #st
 st.set_page_config(page_title='recommend_series')
-st.markdown('#### レコメンド アプリ')
+st.markdown('# レコメンド アプリ')
 
 #データ読み込み
 df_zenkoku = pd.read_pickle('df_zenkoku7879.pickle')
 
+st.markdown('##### １．分析対象得意先の絞込み')
 #得意先範囲の設定
 sales_max = st.number_input('分析対象得意先の売上上限を入力', key='sales_max', value=70000000)
 sales_min = st.number_input('分析対象得意先の売上下限を入力', key='sales_min', value=2000000)
@@ -25,9 +27,13 @@ sales_min = st.number_input('分析対象得意先の売上下限を入力', key
 #salesによる絞込み
 df_zenkoku2 = df_zenkoku.copy()
 df_zenkoku2 = df_zenkoku2[(df_zenkoku2['sales'] >= sales_min) & (df_zenkoku2['sales'] <= sales_max)]
+st.caption(f'対象得意先数: {len(df_zenkoku2)}')
+
+img_yajirusi = Image.open('矢印.jpeg')
+st.image(img_yajirusi, width=20)
 
 #target選定用リスト
-st.write('target得意先の選択')
+st.markdown('##### ２．target得意先の選択')
 df_kita = pd.read_pickle('df_kita7879.pickle')
 cust_text = st.text_input('得意先名の一部を入力 例）東京イ')
 
@@ -42,6 +48,7 @@ if target_list != '':
         'target得意先:',
         target_list,   
     ) 
+st.image(img_yajirusi, width=20)    
 
 if target != '':
 
@@ -55,6 +62,7 @@ if target != '':
     df_zenkoku_temp = df_zenkoku.drop(['sales', 'a_price'], axis=1)
     df_target_sales = df_zenkoku_temp.loc[target]
 
+    #******************アイテムベース*******************************
     #recomenndリスト作成のための計算
     #相関係数×シリーズ売上の一覧
     sim_candidates = pd.Series()
@@ -76,8 +84,8 @@ if target != '':
     df_merge = df_simcan.merge(df_sales, left_index=True, right_index=True, how='right')
     df_merge = df_merge.sort_values(0, ascending=False)
     df_merge.columns = ['points', 'sales']
-    st.markdown('###### 全シリーズ')
-    st.write(df_merge)
+
+    st.markdown('##### ３．展示品の選択')
 
     #展示品の指定
     tenji_series = st.multiselect(
@@ -86,10 +94,88 @@ if target != '':
 
     #展示している商品は削る
     sim_candidates2 = df_merge.drop(index=tenji_series)
-    st.markdown('###### お薦め展示シリーズ')
-    st.write(sim_candidates2)
+    st.markdown('### アイテムベース分析')
+    st.write(sim_candidates2[:5])
+
+    st.image(img_yajirusi, width=20) 
+
+    #******************ユーザーベース*******************************
+    #データの正規化
+    df_zenkoku3_norm = df_zenkoku3.apply(lambda x:(x-np.min(x))/(np.max(x)-np.min(x)),axis=1)
+    #axis=1 行方向
+    df_zenkoku3_norm = df_zenkoku3_norm.fillna(0)
+
+    # コサイン類似度を計算
+
+    #成分のほとんどが0である疎行列はリストを圧縮して表す方式
+    from scipy.sparse import csr_matrix 
+
+    #2つのベクトルがなす角のコサイン値のこと。1なら「似ている」を、-1なら「似ていない」
+    from sklearn.metrics.pairwise import cosine_similarity
+
+    zenkoku3_sparse = csr_matrix(df_zenkoku3_norm.values)
+    user_sim = cosine_similarity(zenkoku3_sparse)
+    user_sim_df = pd.DataFrame(user_sim,index=df_zenkoku3_norm.index,columns=df_zenkoku3_norm.index)
+
+    # ユーザーtarget_nameと類似度の高いユーザー上位3店を抽出する
+    sim_users = user_sim_df.loc[target].sort_values(ascending=False)[0:5]
+    
+
+    # ユーザーのインデックスをリストに変換
+    sim_users_list = sim_users.index.tolist()
+    #listからtarget_nameを削除
+
+    #targetと同じ得意先のデータを削除
+    sim_users_list2 = []
+    for name in sim_users_list:
+        if name[:3] not in target:
+            sim_users_list2.append(name)
+
+    st.markdown('### ユーザーベース分析')
+    st.write('類似得意先')
+    st.write(sim_users.loc[sim_users_list2])
+
+    # 類似度の高い上位得意先のスコア情報を集めてデータフレームに格納
+    sim_df = pd.DataFrame()
+    count = 0
+    
+    for i in df_zenkoku3_norm.iloc[:,0].index: #得意先名
+        if i in sim_users_list2:
+            #iloc[数字]でindexのみ指定可
+            sim_df = pd.concat([sim_df,pd.DataFrame(df_zenkoku3_norm.iloc[count]).T])
+        count += 1
+
+    # ユーザーtarget_nameの販売シリーズを取得する
+    df_target_sales = df_zenkoku3[df_zenkoku3.index==target].T
+
+    # 未販売リストを作る
+    nontenji_list = list(set(df_zenkoku3_norm.columns) - set(tenji_series))
+    
+
+    sim_df = sim_df[nontenji_list]
+
+    #各シリーズの評点の平均をとる
+    score = []
+    for i in range(len(sim_df.columns)):
+        #series毎に平均を出す
+        mean_score = sim_df.iloc[:,i].mean()
+        #seriesのname取り出し　columnで絞った場合はcolumns名
+        name = sim_df.iloc[:,i].name
+        #scoreにlist形式でシリーズ名とスコアを格納
+        score.append([name, mean_score])
+    # 集計結果からスコアの高い順にソートする
+    #１つのlistに２カラム分入っている為list(zip())不要　
+    #カラム名指定していない為0 1
+    score_data = pd.DataFrame(score).sort_values(1, ascending=False)
+
+    st.markdown('###### お薦めシリーズ（ユーザーベース）')
+    st.write(score_data[:5])
+
+    st.image(img_yajirusi, width=20)   
+  
 
 #***************************lgbm********************************************
+st.markdown('## 展示後の売上の推測（機械学習）')
 with st.form('lgbmによる推測'):
 
     #lgbmで予測するシリーズの選択
