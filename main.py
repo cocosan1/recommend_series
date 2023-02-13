@@ -14,12 +14,12 @@ from sklearn.metrics import r2_score # モデル評価用(決定係数)
 
 #st
 st.set_page_config(page_title='recommend_series')
-st.markdown('# レコメンド アプリ')
+st.markdown('### レコメンド アプリ')
 
 #データ読み込み
 df_zenkoku = pd.read_pickle('df_zenkoku7879.pickle')
 
-st.markdown('##### １．分析対象得意先の絞込み')
+st.markdown('###### １．分析対象得意先の絞込み')
 #得意先範囲の設定
 sales_max = st.number_input('分析対象得意先の売上上限を入力', key='sales_max', value=70000000)
 sales_min = st.number_input('分析対象得意先の売上下限を入力', key='sales_min', value=2000000)
@@ -33,7 +33,7 @@ img_yajirusi = Image.open('矢印.jpeg')
 st.image(img_yajirusi, width=20)
 
 #target選定用リスト
-st.markdown('##### ２．target得意先の選択')
+st.markdown('######  ２．target得意先の選択')
 df_kita = pd.read_pickle('df_kita7879.pickle')
 cust_text = st.text_input('得意先名の一部を入力 例）東京イ')
 
@@ -85,17 +85,14 @@ if target != '':
     df_merge = df_merge.sort_values(0, ascending=False)
     df_merge.columns = ['points', 'sales']
 
-    st.markdown('##### ３．展示品の選択')
+    st.markdown('######  ３．展示品の選択')
 
     #展示品の指定
     tenji_series = st.multiselect(
         '展示品を選択',
         df_target_sales.index)
 
-    #展示している商品は削る
-    sim_candidates2 = df_merge.drop(index=tenji_series)
-    st.markdown('### アイテムベース分析')
-    st.write(sim_candidates2[:5])
+    
 
     st.image(img_yajirusi, width=20) 
 
@@ -131,9 +128,6 @@ if target != '':
         if name[:3] not in target:
             sim_users_list2.append(name)
 
-    st.markdown('### ユーザーベース分析')
-    st.write('類似得意先')
-    st.write(sim_users.loc[sim_users_list2])
 
     # 類似度の高い上位得意先のスコア情報を集めてデータフレームに格納
     sim_df = pd.DataFrame()
@@ -166,13 +160,33 @@ if target != '':
     # 集計結果からスコアの高い順にソートする
     #１つのlistに２カラム分入っている為list(zip())不要　
     #カラム名指定していない為0 1
-    score_data = pd.DataFrame(score).sort_values(1, ascending=False)
+    df_score_data = pd.DataFrame(score, columns=['cust', 'points']).sort_values('points', ascending=False)
+    df_score_data = df_score_data.set_index('cust')
 
-    st.markdown('###### お薦めシリーズ（ユーザーベース）')
-    st.write(score_data[:5])
+    st.markdown('######  ４．展示候補シリーズ')
 
-    st.image(img_yajirusi, width=20)   
-  
+    col1, col2 = st.columns(2)
+
+    with col1:
+        #展示している商品は削る
+        sim_candidates2 = df_merge.drop(index=tenji_series)
+        sim_candidates2 = sim_candidates2['points']
+        st.markdown('###### アイテムベース分析')
+        st.table(sim_candidates2[:5])
+
+        st.caption('※参考　展示品のpoints')
+        st.table(df_merge[:5])
+
+    with col2:
+        st.markdown('###### ユーザーベース分析')
+        st.table(df_score_data[:5])
+        st.caption('※一番売上が高いシリーズを1とした時の予測数値')
+
+        df_temp1 = df_zenkoku3.loc[target].sort_values(ascending=False)[:1]
+        st.write(df_temp1)
+
+        st.write('類似得意先')
+        st.write(sim_users.loc[sim_users_list2])
 
 #***************************lgbm********************************************
 st.markdown('## 展示後の売上の推測（機械学習）')
