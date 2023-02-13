@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image
+import openpyxl
 
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -95,6 +96,64 @@ if target != '':
     
 
     st.image(img_yajirusi, width=20) 
+
+    st.markdown('######  ４．動きのよくない展示品の抽出')
+
+    # ***ファイルアップロード 今期***
+    uploaded_file_now = st.file_uploader('今期', type='xlsx', key='now')
+
+    if uploaded_file_now:
+        df_now = pd.read_excel(
+            uploaded_file_now, sheet_name='受注委託移動在庫生産照会', usecols=[3, 15, 42, 50])  # index　ナンバー不要　index_col=0
+    else:
+        st.info('今期のファイルを選択してください。')
+        st.stop()
+
+    #targetから79などを削除
+    target2 = target[:-2]
+    
+    #LD分類
+    df_now_target = df_now[df_now['得意先名']==target2]
+    cate_list = []
+    for cate in df_now_target['商品分類名2']:
+        if cate in ['ダイニングテーブル', 'ダイニングチェア', 'ベンチ']:
+            cate_list.append('d')
+        elif cate in ['リビングチェア', 'クッション', 'リビングテーブル']:
+            cate_list.append('l')
+        else:
+            cate_list.append('none') 
+
+    df_now_target['category'] = cate_list 
+
+    #noneを削除
+    df_now_target = df_now_target[df_now_target['category']!='none']
+
+    #シリーズ名＋LD分類
+    df_now_target['series2'] = df_now_target['シリーズ名'] + '_' + df_now_target['category']
+
+    #series2でgroupby
+    df_now_target_g = df_now_target.groupby('series2')['金額'].sum()
+
+    #展示品に絞る
+    tenji_series = list(tenji_series)
+    
+    df_now_target_g = df_now_target_g.drop(index=tenji_series)
+    st.write(df_now_target_g)
+
+    # st.table(df_now_target_g)
+
+    # df_now_target_g[df_now_target_g] tenji_series
+
+    # #展示品の売り上げ下限を入力
+    # min_line = st.number_input('展示品の売上下限を入力', key='min_line', value=0)
+
+    # #売上下限以下のdfを作成
+    # df_problem_series = df_now_target_g[df_now_target_g <= min_line]
+
+    # df_problem_series = df_problem_series.sort_values()
+
+    # st.write('動きの良くない展示シリーズ')
+    # st.table(df_problem_series)
 
     #******************ユーザーベース*******************************
     #データの正規化
