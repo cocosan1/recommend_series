@@ -131,29 +131,147 @@ if target != '':
     #シリーズ名＋LD分類
     df_now_target['series2'] = df_now_target['シリーズ名'] + '_' + df_now_target['category']
 
-    #series2でgroupby
-    df_now_target_g = df_now_target.groupby('series2')['金額'].sum()
+    #seiries2を品番に変換
+
+    index_list = []
+    htsd_list = []
+    kxd_list = []
+    sgd_list = []
+    kdd_list = []
+    snd_list = []
+    vzd_list = []
+    sld_list = []
+    fxd_list = []
+    rkd_list = []
+    psd_list = []
+
+    snl_list = []
+    hkl_list = []
+    wkl_list = []
+    kdl_list = []
+    wql_list = []
+    wnl_list = []
+    fxl_list = []
+    psl_list = []
+    sdl_list = []
+
+    sales_list = []
+
+    for cust in df_now_target['得意先名'].unique():
+        index_list.append(cust)
+        df = df_now_target[df_now_target['得意先名']==cust]
+        sales = df['金額'].sum()
+        sales_list.append(sales)
+
+        for series in  ['侭 JIN_d', 'SEOTO-EX_d', 'クレセント_d', 'SEOTO_d', '森のことば_d', 'TUGUMI_d', 'YURURI_d',\
+            '風のうた_d', 'ALMO (ｱﾙﾓ)_d', 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_d',\
+            '森のことば_l', '穂高_l', 'CHIGUSA(ﾁｸﾞｻ）_l', 'SEOTO_l', 'SEION 静穏_l', 'VIOLA (ｳﾞｨｵﾗ)_l',\
+            '風のうた_l', 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_l', 'ｽﾀﾝﾀﾞｰﾄﾞｺﾚｸｼｮﾝ_l']:
+
+                    if len(df_now_target[df_now_target['series2']==series]) == 0:
+                        if series == '侭 JIN_d':
+                            htsd_list.append(0)
+                        elif series == 'SEOTO-EX_d':  
+                            kxd_list.append(0)
+                        elif series == 'クレセント_d':
+                            sgd_list.append(0)
+                        elif series == 'SEOTO_d':
+                            kdd_list.append(0)
+                        elif series == '森のことば_d':
+                            snd_list.append(0)
+                        elif series == 'TUGUMI_d':
+                            vzd_list.append(0) 
+                        elif series == 'YURURI_d':
+                            sld_list.append(0)
+                        elif series == '風のうた_d':
+                            fxd_list.append(0)
+                        elif series == 'ALMO (ｱﾙﾓ)_d':
+                            rkd_list.append(0)
+                        elif series == 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_d':
+                            psd_list.append(0)        
+
+                        elif series == '森のことば_l':
+                            snl_list.append(0)
+                        elif series == '穂高_l':
+                            hkl_list.append(0)
+                        elif series == 'CHIGUSA(ﾁｸﾞｻ）_l':
+                            wkl_list.append(0)       
+                        elif series == 'SEOTO_l':
+                            kdl_list.append(0)
+                        elif series == 'SEION 静穏_l':
+                            wql_list.append(0) 
+                        elif series == 'VIOLA (ｳﾞｨｵﾗ)_l':
+                            wnl_list.append(0) 
+                        elif series == '風のうた_l':
+                            fxl_list.append(0) 
+                        elif series == 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_l':
+                            psl_list.append(0)
+                        elif series == 'ｽﾀﾝﾀﾞｰﾄﾞｺﾚｸｼｮﾝ_l':
+                            sdl_list.append(0)          
+                            
+                    else:
+                        sales = df_now_target[df_now_target['series2']==series]['金額'].sum()
+                        if series == '侭 JIN_d':
+                            htsd_list.append(sales)
+                        elif series == 'SEOTO-EX_d':  
+                            kxd_list.append(sales)
+                        elif series == 'クレセント_d':
+                            sgd_list.append(sales)
+                        elif series == 'SEOTO_d':
+                            kdd_list.append(sales)
+                        elif series == '森のことば_d':
+                            snd_list.append(sales)
+                        elif series == 'TUGUMI_d':
+                            vzd_list.append(sales) 
+                        elif series == 'YURURI_d':
+                            sld_list.append(sales)
+                        elif series == '風のうた_d':
+                            fxd_list.append(sales)
+                        elif series == 'ALMO (ｱﾙﾓ)_d':
+                            rkd_list.append(sales)
+                        elif series == 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_d':
+                            psd_list.append(sales)        
+                        elif series == '森のことば_l':
+                            snl_list.append(sales)
+                        elif series == '穂高_l':
+                            hkl_list.append(sales)
+                        elif series == 'CHIGUSA(ﾁｸﾞｻ）_l':
+                            wkl_list.append(sales)       
+                        elif series == 'SEOTO_l':
+                            kdl_list.append(sales)
+                        elif series == 'SEION 静穏_l':
+                            wql_list.append(sales) 
+                        elif series == 'VIOLA (ｳﾞｨｵﾗ)_l':
+                            wnl_list.append(sales) 
+                        elif series == '風のうた_l':
+                            fxl_list.append(sales) 
+                        elif series == 'PRESCELTO (ﾌﾟﾚｼｪﾙﾄ）_l':
+                            psl_list.append(sales)
+                        elif series == 'ｽﾀﾝﾀﾞｰﾄﾞｺﾚｸｼｮﾝ_l':
+                            sdl_list.append(sales)
+
+    df_now_target2 =pd.DataFrame(list(zip(sales_list, htsd_list, kxd_list, sgd_list, kdd_list, snd_list,\
+                                  vzd_list, sld_list, fxd_list, rkd_list, psd_list,\
+                                  snl_list, hkl_list, wkl_list, kdl_list, wql_list, wnl_list, fxl_list,\
+                                  psl_list, sdl_list)), \
+                         index=['売上'],\
+                          columns=['sales', 'hts_d', 'kx_d', 'sg_d', 'kd_d', 'sn_d', 'vz_d', 'sl_d',\
+                                   'fx_d', 'rk_d', 'ps_d',\
+                                   'sn_l', 'hk_l', 'wk_l', 'kd_l', 'wq_l', 'wn_l', 'fx_l', 'ps_l', 'sd_l']).T
 
     #展示品に絞る
-    tenji_series = list(tenji_series)
-    
-    df_now_target_g = df_now_target_g.drop(index=tenji_series)
-    st.write(df_now_target_g)
+    df_now_tenji = df_now_target2.loc[tenji_series]
 
-    # st.table(df_now_target_g)
+    #展示品の売り上げ下限を入力
+    min_line = st.number_input('展示品の売上下限を入力', key='min_line', value=0)
 
-    # df_now_target_g[df_now_target_g] tenji_series
+    #売上下限以下のdfを作成
+    df_problem_series = df_now_tenji[df_now_tenji['売上'] <= min_line]
 
-    # #展示品の売り上げ下限を入力
-    # min_line = st.number_input('展示品の売上下限を入力', key='min_line', value=0)
+    df_problem_series = df_problem_series.sort_values('売上')
 
-    # #売上下限以下のdfを作成
-    # df_problem_series = df_now_target_g[df_now_target_g <= min_line]
-
-    # df_problem_series = df_problem_series.sort_values()
-
-    # st.write('動きの良くない展示シリーズ')
-    # st.table(df_problem_series)
+    st.write('動きの良くない展示シリーズ')
+    st.table(df_problem_series)
 
     #******************ユーザーベース*******************************
     #データの正規化
